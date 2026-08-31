@@ -23,6 +23,9 @@ class App(ctk.CTk):
         self.minsize(700, 550)
         self.configure(fg_color="#0b0b0f")
 
+        # Current user
+        self.current_user_id = None
+
         # Set up database
 
         setup_database()
@@ -48,7 +51,7 @@ class App(ctk.CTk):
         LoginFrame(
             self,
             self.show_signup,
-            self.show_chat
+            self.show_chat_with_user
         ).pack(
             fill="both",
             expand=True
@@ -62,25 +65,40 @@ class App(ctk.CTk):
 
         SignupFrame(
             self,
-            self.show_chat,
+            self.show_chat_with_user,
             self.show_login
         ).pack(
             fill="both",
             expand=True
         )
 
+    # Show chat screen with user ID
+    def show_chat_with_user(self, user_id):
+
+        self.show_chat(user_id)
+
     # Show chat screen
 
-    def show_chat(self):
+    def show_chat(self, user_id):
+
+        self.current_user_id = user_id
 
         self.clear()
 
         ChatFrame(
-            self
+            self,
+            self.handle_logout,
+            self.current_user_id
         ).pack(
             fill="both",
             expand=True
         )
+
+    # Handle logout
+    def handle_logout(self):
+
+        self.current_user_id = None
+        self.show_login()
 
 if __name__ == "__main__":
     App().mainloop()

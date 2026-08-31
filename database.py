@@ -59,11 +59,40 @@ def create_users_table():
     mysql_cursor.close()
     mysql_connection.close()
 
+# Create the messages table if it does not exist
+def create_messages_table():
+
+    mysql_connection = mysql.connector.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME
+    )
+
+    mysql_cursor = mysql_connection.cursor()
+
+    mysql_cursor.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            message_text TEXT NOT NULL,
+            is_user_message BOOLEAN NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    mysql_connection.commit()
+
+    mysql_cursor.close()
+    mysql_connection.close()
+
 # Set up everything needed by the application
 def setup_database():
 
     create_database()
     create_users_table()
+    create_messages_table()
 
 # Get a connection to the AURA database
 def get_database_connection():

@@ -127,7 +127,9 @@ class LoginFrame(ctk.CTkFrame):
 
             return
 
-        if not login_user(email_address, password_text):
+        user_id = login_user(email_address, password_text)
+
+        if not user_id:
 
             self.login_error_message.configure(
                 text="Invalid email or password."
@@ -135,4 +137,4 @@ class LoginFrame(ctk.CTkFrame):
 
             return
 
-        self.login_callback()
+        self.login_callback(user_id)

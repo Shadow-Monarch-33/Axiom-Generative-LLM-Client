@@ -180,7 +180,15 @@ class SignupFrame(ctk.CTkFrame):
 
             return
 
-        create_user(name, email, password)
+        user_id = create_user(name, email, password)
+
+        if not user_id:
+
+            self.signup_error_message.configure(
+                text="An account with this email already exists."
+            )
+
+            return
 
         self.signup_loading_message = ctk.CTkLabel(
             self.signup_card_frame,
@@ -191,4 +199,4 @@ class SignupFrame(ctk.CTkFrame):
         self.signup_loading_message.pack(pady=5)
 
         # Waits 2 secs before opening chat
-        self.after(2000, self.chat_callback)
+        self.after(2000, lambda: self.chat_callback(user_id))
