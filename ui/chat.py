@@ -1,17 +1,16 @@
 import customtkinter as ctk
 import threading
-from groq_ai import send_message_to_ai
-from chat_storage import save_message, load_user_messages
+from groq_ai import Assistant
+from chat_storage import save_message, load_user_messages, load_conversation_history
 
 class ChatFrame(ctk.CTkFrame):
 
     def __init__(self, parent_window, logout_callback, user_id):
-        super().__init__(parent_window, fg_color="#0b0b0f")
+        super().__init__(parent_window, fg_color="#0a0a0e")
 
         self.logout_callback = logout_callback
         self.user_id = user_id
         self.is_loading = False
-        self.logout_button = None
 
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -19,60 +18,77 @@ class ChatFrame(ctk.CTkFrame):
         # Header
         header_frame = ctk.CTkFrame(
             self,
-            height=65,
-            fg_color="#101016",
+            height=56,
+            fg_color="#121218",
             corner_radius=0
         )
         header_frame.grid(row=0, column=0, sticky="ew")
         header_frame.grid_propagate(False)
 
+        # Axiom branding
         ctk.CTkLabel(
             header_frame,
-            text="✦  AURA",
-            font=ctk.CTkFont(size=19, weight="bold")
-        ).pack(side="left", padx=28)
+            text="Axiom",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#5b8cff"
+        ).pack(side="left", padx=24)
+
+        # Status indicator
+        status_frame = ctk.CTkFrame(
+            header_frame,
+            fg_color="transparent"
+        )
+        status_frame.pack(side="left", padx=12)
 
         ctk.CTkLabel(
-            header_frame,
-            text="●  Online",
+            status_frame,
+            text="●",
             text_color="#72d68a",
-            font=ctk.CTkFont(size=12)
-        ).pack(side="right", padx=(0, 15))
+            font=ctk.CTkFont(size=10)
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            status_frame,
+            text="Online",
+            text_color="#777783",
+            font=ctk.CTkFont(size=11)
+        ).pack(side="left", padx=(4, 0))
 
         # Logout button
         self.logout_button = ctk.CTkButton(
             header_frame,
             text="Log out",
-            width=80,
+            width=75,
             height=36,
             corner_radius=8,
-            font=ctk.CTkFont(size=13),
+            font=ctk.CTkFont(size=12),
             fg_color="#2a2a35",
             hover_color="#3a3a45",
             command=self.logout
         )
-        self.logout_button.pack(side="right", padx=15)
+        self.logout_button.pack(side="right", padx=12)
 
         # Messages
         self.messages_frame = ctk.CTkScrollableFrame(
             self,
-            fg_color="#0b0b0f",
+            fg_color="#0a0a0e",
             corner_radius=0
         )
         self.messages_frame.grid(
             row=1, column=0,
             sticky="nsew",
-            padx=80, pady=25
+            padx=0,
+            pady=0
         )
 
         # Empty state
         self.empty_message = ctk.CTkLabel(
             self.messages_frame,
-            text="✦\n\nHow can I help you today?",
-            font=ctk.CTkFont(size=22, weight="bold"),
+            text="Axiom\n\nHow can I help you today?",
+            font=ctk.CTkFont(size=20, weight="bold"),
             text_color="#555560"
         )
-        self.empty_message.pack(expand=True, pady=150)
+        self.empty_message.pack(expand=True, pady=180)
 
         # Load chat history
         self.load_chat_history()
@@ -80,43 +96,64 @@ class ChatFrame(ctk.CTkFrame):
         # Input area
         input_frame = ctk.CTkFrame(
             self,
-            fg_color="#0b0b0f"
+            fg_color="#121218",
+            height=80
         )
         input_frame.grid(
             row=2, column=0,
-            sticky="ew",
-            padx=80, pady=(0, 25)
+            sticky="ew"
         )
         input_frame.grid_columnconfigure(0, weight=1)
 
-        self.message_input = ctk.CTkEntry(
+        # Input container
+        input_container = ctk.CTkFrame(
             input_frame,
-            height=52,
-            corner_radius=16,
-            border_width=1,
+            fg_color="transparent"
+        )
+        input_container.pack(
+            fill="x",
+            expand=True,
+            padx=20,
+            pady=16
+        )
+        input_container.grid_columnconfigure(0, weight=1)
+
+        self.message_input = ctk.CTkEntry(
+            input_container,
+            height=48,
+            corner_radius=12,
+            border_width=2,
             border_color="#292932",
-            fg_color="#14141b",
-            placeholder_text="Ask anything..."
+            fg_color="#1a1a22",
+            placeholder_text="Type your message...",
+            placeholder_text_color="#555560"
         )
         self.message_input.grid(
             row=0, column=0,
             sticky="ew",
-            padx=(0, 10)
+            padx=(0, 12)
         )
         self.message_input.bind(
             "<Return>",
             lambda _: self.send_message()
         )
 
-        ctk.CTkButton(
-            input_frame,
-            text="↑",
-            width=52,
-            height=52,
-            corner_radius=16,
-            font=ctk.CTkFont(size=20),
+        # Send button
+        self.send_button = ctk.CTkButton(
+            input_container,
+            text="→",
+            width=48,
+            height=48,
+            corner_radius=12,
+            font=ctk.CTkFont(size=18),
+            fg_color="#4a7ab8",
+            hover_color="#5b8aff",
             command=self.send_message
-        ).grid(row=0, column=1)
+        )
+        self.send_button.grid(row=0, column=1)
+
+        # AI client
+        self.assistant = Assistant()
 
     # Load chat history
     def load_chat_history(self):
@@ -152,21 +189,25 @@ class ChatFrame(ctk.CTkFrame):
 
         # Show loading state
         self.is_loading = True
+        self.send_button.configure(state="disabled")
         loading_message = self.add_message("Thinking...", False)
 
         # Start Groq request in background thread
         thread = threading.Thread(
             target=self.get_ai_response,
-            args=(message_text, loading_message)
+            args=(loading_message,)
         )
         thread.daemon = True
         thread.start()
 
-    def get_ai_response(self, user_message, loading_message):
-        ai_response = send_message_to_ai(user_message)
+    def get_ai_response(self, loading_message):
+        # Load conversation history
+        history = load_conversation_history(self.user_id)
+
+        # Get AI response with history
+        ai_response = self.assistant.generate_response(history)
 
         # Schedule the update on main thread with delay
-        # Use after() to switch to main thread, then another after() for delay
         self.after(0, lambda: self.schedule_delayed_update(ai_response, loading_message))
 
     def schedule_delayed_update(self, ai_response, loading_message):
@@ -175,6 +216,7 @@ class ChatFrame(ctk.CTkFrame):
 
     def update_ai_response(self, ai_response, loading_message):
         self.is_loading = False
+        self.send_button.configure(state="normal")
 
         # Remove loading message
         loading_message.destroy()
@@ -202,9 +244,10 @@ class ChatFrame(ctk.CTkFrame):
         logout_message = ctk.CTkLabel(
             self.messages_frame,
             text="Logging out...",
-            text_color="#777783"
+            text_color="#777783",
+            font=ctk.CTkFont(size=14)
         )
-        logout_message.pack(pady=10)
+        logout_message.pack(pady=12)
 
         # Wait 1.5 seconds then complete logout
         self.after(1500, lambda: self.complete_logout(logout_message))
@@ -223,35 +266,53 @@ class ChatFrame(ctk.CTkFrame):
         # Show empty state again
         self.empty_message = ctk.CTkLabel(
             self.messages_frame,
-            text="✦\n\nHow can I help you today?",
-            font=ctk.CTkFont(size=22, weight="bold"),
+            text="Axiom\n\nHow can I help you today?",
+            font=ctk.CTkFont(size=20, weight="bold"),
             text_color="#555560"
         )
-        self.empty_message.pack(expand=True, pady=150)
+        self.empty_message.pack(expand=True, pady=180)
 
         # Return to login
         self.logout_callback()
 
     def add_message(self, message_text, is_user, auto_scroll=True):
-        message_frame = ctk.CTkFrame(
+        # Message bubble colors
+        bubble_color = "#243b73" if is_user else "#49305f"
+
+        # Message row for alignment
+        message_row = ctk.CTkFrame(
             self.messages_frame,
-            fg_color="#191921" if is_user else "#111117",
-            corner_radius=14
+            fg_color="transparent"
         )
-        message_frame.pack(
+        message_row.pack(
             fill="x",
-            pady=6,
-            padx=(100 if is_user else 0, 0 if is_user else 100)
+            pady=8
         )
 
-        ctk.CTkLabel(
-            message_frame,
+        # Message bubble with self-sizing
+        message_bubble = ctk.CTkFrame(
+            message_row,
+            fg_color=bubble_color,
+            corner_radius=16
+        )
+
+        # Align user right, AI left
+        if is_user:
+            message_bubble.pack(side="right", padx=20)
+        else:
+            message_bubble.pack(side="left", padx=20)
+
+        # Message label with max width
+        message_label = ctk.CTkLabel(
+            message_bubble,
             text=message_text,
             justify="left",
             anchor="w",
-            wraplength=600,
-            font=ctk.CTkFont(size=14)
-        ).pack(
+            wraplength=550,
+            font=ctk.CTkFont(size=14),
+            text_color="#e0e0e0"
+        )
+        message_label.pack(
             fill="x",
             padx=18,
             pady=14
@@ -263,4 +324,4 @@ class ChatFrame(ctk.CTkFrame):
                 lambda: self.messages_frame._parent_canvas.yview_moveto(1)
             )
 
-        return message_frame
+        return message_row

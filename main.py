@@ -18,7 +18,7 @@ class App(ctk.CTk):
 
         # Window settings
 
-        self.title("AURA")
+        self.title("Axiom")
         self.geometry("900x650")
         self.minsize(700, 550)
         self.configure(fg_color="#0b0b0f")

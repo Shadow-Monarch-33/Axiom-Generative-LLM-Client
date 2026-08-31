@@ -53,7 +53,7 @@ class SignupFrame(ctk.CTkFrame):
 
         ctk.CTkLabel(
             self.signup_card_frame,
-            text="Start chatting with AURA",
+            text="Start chatting with Axiom",
             text_color="#777783"
         ).pack(pady=(5, 28))
 

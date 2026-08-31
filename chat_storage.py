@@ -40,3 +40,17 @@ def load_user_messages(user_id):
     mysql_connection.close()
 
     return messages
+
+# Load messages in Groq format for AI history
+def load_conversation_history(user_id):
+
+    messages = load_user_messages(user_id)
+
+    history = []
+
+    for message_text, is_user_message in messages:
+
+        role = "user" if is_user_message else "assistant"
+        history.append({"role": role, "content": message_text})
+
+    return history

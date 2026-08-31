@@ -46,7 +46,7 @@ class LoginFrame(ctk.CTkFrame):
         # Subtitle
         ctk.CTkLabel(
             login_card_frame,
-            text="Sign in to continue to AURA",
+            text="Sign in to continue to Axiom",
             text_color="#777783",
             font=ctk.CTkFont(size=13)
         ).pack(pady=(5, 35))
